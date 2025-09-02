@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioPython Function Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>🌈 BioPython Function Analyzer 🌈</h1>
+        <p>Explore, analyze, and learn about BioPython functions in a colorful way!</p>
+    </header>
+    <main>
+        <section class="input-section">
+            <label for="function-input">Enter BioPython Function Name:</label>
+            <input type="text" id="function-input" placeholder="e.g. Seq, AlignIO.read, pairwise2.align">
+            <button id="analyze-btn">Analyze</button>
+        </section>
+        <section class="align-section" id="align-section" style="display:none;">
+            <h3>Sequence Analysis Tools</h3>
+            <label for="seq1">Sequence 1:</label>
+            <input type="text" id="seq1" placeholder="Enter first sequence">
+            <br>
+            <label for="seq2">Sequence 2:</label>
+            <input type="text" id="seq2" placeholder="Enter second sequence">
+            <br>
+            <button id="align-btn">Align Sequences</button>
+            <button id="count-btn">Nucleotide Count</button>
+            <button id="reverse-btn">Reverse</button>
+            <button id="transcribe-btn">Transcribe</button>
+            <button id="translate-btn">Translate</button>
+            <section id="align-result"></section>
+        </section>
+        <section class="result-section" id="result-section">
+            <!-- Dynamic analysis results will appear here -->
+        </section>
+    </main>
+    <footer>
+        <p>Powered By MUHAMMAD ZESHAN <span class="heart">❤</span> for Bioinformatics Enthusiasts</p>
+    </footer>
+    <script>
+        // Demo data for some BioPython functions
+        const biopythonData = {
+            "Seq": {
+                desc: "The Seq object is a fundamental data structure in Biopython representing biological sequences.",
+                usage: `from Bio.Seq import Seq\nmy_seq = Seq("AGTACACTGGT")`,
+                category: "Core"
+            },
+            "AlignIO.read": {
+                desc: "Reads a single alignment from a file using the specified format.",
+                usage: `from Bio import AlignIO\nalignment = AlignIO.read("example.fasta", "fasta")`,
+                category: "Input/Output"
+            },
+            "pairwise2.align": {
+                desc: "Performs pairwise sequence alignment (global or local) between two sequences.",
+                usage: `from Bio import pairwise2\nalignments = pairwise2.align.globalxx("ACCGT", "ACG")`,
+                category: "Alignment"
+            }
+        };
+
+        // Needleman-Wunsch global alignment for demonstration
+        function simpleGlobalAlign(seq1, seq2, match=1, mismatch=-1, gap=-2) {
+            const m = seq1.length;
+            const n = seq2.length;
+            // Initialize scoring matrix
+            const score = [];
+            for (let i = 0; i <= m; i++) {
+                score[i] = [];
+                for (let j = 0; j <= n; j++) {
+                    if (i === 0) score[i][j] = j * gap;
+                    else if (j === 0) score[i][j] = i * gap;
+                    else score[i][j] = 0;
+                }
+            }
+            // Fill scoring matrix
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    const diag = score[i-1][j-1] + (seq1[i-1] === seq2[j-1] ? match : mismatch);
+                    const up   = score[i-1][j] + gap;
+                    const left = score[i][j-1] + gap;
+                    score[i][j] = Math.max(diag, up, left);
+                }
+            }
+            // Traceback
+            let align1 = "";
+            let align2 = "";
+            let i = m, j = n;
+            while (i > 0 && j > 0) {
+                const current = score[i][j];
+                const diag = score[i-1][j-1];
+                const up = score[i-1][j];
+                const left = score[i][j-1];
+                if (current === diag + (seq1[i-1] === seq2[j-1] ? match : mismatch)) {
+                    align1 = seq1[i-1] + align1;
+                    align2 = seq2[j-1] + align2;
+                    i--; j--;
+                } else if (current === up + gap) {
+                    align1 = seq1[i-1] + align1;
+                    align2 = "-" + align2;
+                    i--;
+                } else {
+                    align1 = "-" + align1;
+                    align2 = seq2[j-1] + align2;
+                    j--;
+                }
+            }
+            while (i > 0) {
+                align1 = seq1[i-1] + align1;
+                align2 = "-" + align2;
+                i--;
+            }
+            while (j > 0) {
+                align1 = "-" + align1;
+                align2 = seq2[j-1] + align2;
+                j--;
+            }
+            // Match line
+            let matchLine = "";
+            for (let k = 0; k < align1.length; k++) {
+                if (align1[k] === align2[k]) matchLine += "|";
+                else matchLine += " ";
+            }
+            return {
+                align1,
+                align2,
+                matchLine,
+                score: score[m][n]
+            };
+        }
+
+        // Nucleotide Count
+        function nucleotideCount(seq) {
+            const counts = {A: 0, T: 0, G: 0, C: 0, N: 0};
+            for (let char of seq) {
+                if (counts.hasOwnProperty(char)) counts[char]++;
+                else counts.N++;
+            }
+            return counts;
+        }
+
+        // Reverse Sequence
+        function reverseSequence(seq) {
+            return seq.split('').reverse().join('');
+        }
+
+        // Transcription (DNA to RNA)
+        function transcribe(seq) {
+            return seq.replace(/T/gi, 'U');
+        }
+
+        // Simple Codon Table for Translation (DNA/RNA to Protein)
+        const codonTable = {
+            'TTT':'F','TTC':'F','TTA':'L','TTG':'L','CTT':'L','CTC':'L','CTA':'L','CTG':'L',
+            'ATT':'I','ATC':'I','ATA':'I','ATG':'M','GTT':'V','GTC':'V','GTA':'V','GTG':'V',
+            'TCT':'S','TCC':'S','TCA':'S','TCG':'S','CCT':'P','CCC':'P','CCA':'P','CCG':'P',
+            'ACT':'T','ACC':'T','ACA':'T','ACG':'T','GCT':'A','GCC':'A','GCA':'A','GCG':'A',
+            'TAT':'Y','TAC':'Y','TAA':'*','TAG':'*','CAT':'H','CAC':'H','CAA':'Q','CAG':'Q',
+            'AAT':'N','AAC':'N','AAA':'K','AAG':'K','GAT':'D','GAC':'D','GAA':'E','GAG':'E',
+            'TGT':'C','TGC':'C','TGA':'*','TGG':'W','CGT':'R','CGC':'R','CGA':'R','CGG':'R',
+            'AGT':'S','AGC':'S','AGA':'R','AGG':'R','GGT':'G','GGC':'G','GGA':'G','GGG':'G'
+        };
+        // Translation (DNA to Protein, assumes first base is start)
+        function translate(seq) {
+            let protein = "";
+            seq = seq.replace(/U/gi, 'T'); // Allow for RNA input by converting U to T
+            for (let i = 0; i < seq.length - 2; i += 3) {
+                const codon = seq.substr(i, 3).toUpperCase();
+                if (codon.length === 3) {
+                    protein += codonTable[codon] || 'X';
+                }
+            }
+            return protein;
+        }
+
+        document.getElementById('analyze-btn').addEventListener('click', function() {
+            const input = document.getElementById('function-input').value.trim();
+            const resultSection = document.getElementById('result-section');
+            const alignSection = document.getElementById('align-section');
+            document.getElementById('align-result').innerHTML = "";
+            if (input in biopythonData) {
+                const data = biopythonData[input];
+                resultSection.innerHTML = `
+                    <div class="card">
+                        <h2>${input}</h2>
+                        <p><strong>Description:</strong> ${data.desc}</p>
+                        <pre><code>${data.usage}</code></pre>
+                        <p class="category">Category: ${data.category}</p>
+                    </div>
+                `;
+                // Show align section if Seq is selected
+                if (input === "Seq") {
+                    alignSection.style.display = "block";
+                } else {
+                    alignSection.style.display = "none";
+                }
+            } else if (input.length > 0) {
+                resultSection.innerHTML = `
+                    <div class="card card-error">
+                        <h2>Function Not Found</h2>
+                        <p>Sorry, information for <strong>${input}</strong> is not available. Please try another function name!</p>
+                    </div>
+                `;
+                alignSection.style.display = "none";
+            } else {
+                resultSection.innerHTML = '';
+                alignSection.style.display = "none";
+            }
+        });
+
+        document.getElementById('align-btn').addEventListener('click', function() {
+            const seq1 = document.getElementById('seq1').value.trim().toUpperCase();
+            const seq2 = document.getElementById('seq2').value.trim().toUpperCase();
+            const result = document.getElementById('align-result');
+            if (!seq1 || !seq2) {
+                result.innerHTML = `<div class="card card-error">
+                    <h2>Sequences Required</h2>
+                    <p>Please enter both sequences to align.</p>
+                </div>`;
+                return;
+            }
+            const align = simpleGlobalAlign(seq1, seq2);
+            result.innerHTML = `
+                <div class="card">
+                    <h3>Alignment Result</h3>
+                    <pre style="overflow-x:auto;">
+${align.align1}
+${align.matchLine}
+${align.align2}
+Score: ${align.score}
+                    </pre>
+                </div>
+            `;
+        });
+
+        document.getElementById('count-btn').addEventListener('click', function() {
+            const seq1 = document.getElementById('seq1').value.trim().toUpperCase();
+            const result = document.getElementById('align-result');
+            if (!seq1) {
+                result.innerHTML = `<div class="card card-error">
+                    <h2>Sequence Required</h2>
+                    <p>Please enter a sequence in Sequence 1 for nucleotide count.</p>
+                </div>`;
+                return;
+            }
+            const counts = nucleotideCount(seq1);
+            result.innerHTML = `
+                <div class="card">
+                    <h3>Nucleotide Count</h3>
+                    <ul>
+                        <li>A: ${counts.A}</li>
+                        <li>T: ${counts.T}</li>
+                        <li>G: ${counts.G}</li>
+                        <li>C: ${counts.C}</li>
+                        <li>Other (N): ${counts.N}</li>
+                    </ul>
+                </div>
+            `;
+        });
+
+        document.getElementById('reverse-btn').addEventListener('click', function() {
+            const seq1 = document.getElementById('seq1').value.trim();
+            const result = document.getElementById('align-result');
+            if (!seq1) {
+                result.innerHTML = `<div class="card card-error">
+                    <h2>Sequence Required</h2>
+                    <p>Please enter a sequence in Sequence 1 to reverse.</p>
+                </div>`;
+                return;
+            }
+            const reversed = reverseSequence(seq1);
+            result.innerHTML = `
+                <div class="card">
+                    <h3>Reversed Sequence</h3>
+                    <pre style="overflow-x:auto;">${reversed}</pre>
+                </div>
+            `;
+        });
+
+        document.getElementById('transcribe-btn').addEventListener('click', function() {
+            const seq1 = document.getElementById('seq1').value.trim().toUpperCase();
+            const result = document.getElementById('align-result');
+            if (!seq1) {
+                result.innerHTML = `<div class="card card-error">
+                    <h2>Sequence Required</h2>
+                    <p>Please enter a DNA sequence in Sequence 1 to transcribe.</p>
+                </div>`;
+                return;
+            }
+            const rna = transcribe(seq1);
+            result.innerHTML = `
+                <div class="card">
+                    <h3>Transcribed RNA Sequence</h3>
+                    <pre style="overflow-x:auto;">${rna}</pre>
+                </div>
+            `;
+        });
+
+        document.getElementById('translate-btn').addEventListener('click', function() {
+            const seq1 = document.getElementById('seq1').value.trim().toUpperCase();
+            const result = document.getElementById('align-result');
+            if (!seq1) {
+                result.innerHTML = `<div class="card card-error">
+                    <h2>Sequence Required</h2>
+                    <p>Please enter a DNA or RNA sequence in Sequence 1 to translate.</p>
+                </div>`;
+                return;
+            }
+            const protein = translate(seq1);
+            result.innerHTML = `
+                <div class="card">
+                    <h3>Translated Protein Sequence</h3>
+                    <pre style="overflow-x:auto;">${protein}</pre>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
